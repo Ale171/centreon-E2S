@@ -4,7 +4,7 @@
 #					#
 #########################################
 
-Version 1.0 RC1
+Version 1.0
 Licence: GPL v2
 
 Developped by Merethis for Centreon community
@@ -16,7 +16,7 @@ Compatibility with:
 - Microsoft Windows 2008 SP1
 
 - Microsoft Windows XP SP2
-- Microsoft Windows Vista SP1
+- Microsoft Windows Vista SP2
 
 - Microsoft Windows Seven beta 1
 
