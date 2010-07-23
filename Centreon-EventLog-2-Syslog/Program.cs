@@ -658,8 +658,8 @@ namespace Centreon_EventLog_2_Syslog
                 nextCheck = maxExecTime.AddMinutes(refreshIntervalle);
 
                 DateTime dtNow = DateTime.Now;
-                int now = dtNow.Minute * 60 + dtNow.Second;
-                int sleep = ((nextCheck.Minute * 60 + nextCheck.Second) - now);
+                int now = dtNow.Hour * 3600 + dtNow.Minute * 60 + dtNow.Second;
+                int sleep = ((nextCheck.Hour * 3600 + nextCheck.Minute * 60 + nextCheck.Second) - now);
 
                 if (debInf.Versobe == 2)
                 {
