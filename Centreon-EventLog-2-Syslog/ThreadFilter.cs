@@ -134,7 +134,7 @@ namespace Centreon_EventLog_2_Syslog
 
                         if (isInclude)
                         {
-                            this._SyslogServer.SendEvent(eventLogEntry, this._Debug);
+                            this._SyslogServer.SendEvent(this._LogName, eventLogEntry, ref this._Debug);
                         }
                     }
                     else if (elapsedTimeMin >= 0)
