@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- Parameters of program -->
+  <program>
+    <debug>
+      <!-- Set 1 to active debug -->
+      <level>1</level>
+      <!-- If debug is active, set interger between 0 and 2 -->
+      <verbose>2</verbose>
+      <!-- Rotation parameters-->
+      <!-- In Mega Bytes-->
+      <max_size>100</max_size>
+      <!-- Number of file saved -->
+      <file_number>5</file_number>
+    </debug>
+    <refresh_intervalle>1</refresh_intervalle>
+  </program>
+  <!-- Centreon Syslog Server parameters -->
+  <syslog_server>
+    <!-- Centreon Syslog Server IP address or DNS name-->
+    <server>192.168.1.1</server>
+    <!-- Set TCP or UDP, no case sensitive and default UDP -->
+    <protocole>TCP</protocole>
+    <!-- Set integer between 1 and 65535 -->
+    <port>514</port>
+  </syslog_server>
+  <!-- List of filters -->
+  <filters>
+    <filter>
+      <event>
+        <EventLogName>
+          <include>Application</include>
+          <include>Security</include>
+          <include>System</include>
+          <!--<exclude></exclude>-->
+        </EventLogName>
+        <sources>
+          <include>*</include>
+          <!--<exclude></exclude>-->
+        </sources>
+        <id>
+          <include>*</include>
+          <!--<exclude></exclude>-->
+        </id>
+        <users>
+          <include>*</include>
+          <!--<exclude></exclude>-->
+        </users>
+        <computers>
+          <include>*</include>
+          <!--<exclude></exclude>-->
+        </computers>
+        <type>
+          <include>warning</include>
+          <include>error</include>
+          <!--<exclude></exclude>-->
+        </type>
+        <descriptions>
+          <include>*</include>
+          <!--<exclude></exclude>-->
+        </descriptions>
+      </event>
+      <syslog>
+        <level>warning</level>
+        <Facility>local0</Facility>
+      </syslog>
+    </filter>
+  </filters>
+</root>

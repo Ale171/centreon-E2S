@@ -1,0 +1,723 @@
+﻿using System;
+using System.Collections;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Xml;
+
+namespace Centreon_EventLog_2_Syslog
+{
+    class Program
+    {
+        private static String ConfigurationFile = "Configuration.xml";
+        private static DebugInformations debInf = new DebugInformations();
+        private static Debug deb;
+        private static Hashtable iFilters = null;
+        private static Hashtable eFilters = null;
+        private static Int32 refreshIntervalle = 0;
+        private static Boolean _isActive = true;
+
+        public static DateTime lastExecTime;
+        public static DateTime maxExecTime;
+        public static DateTime nextCheck;
+
+        private static ManualResetEvent[] doneEvents = null;
+
+        static void Main(string[] args)
+        {
+            Start();
+        }
+
+        /// <summary>
+        /// Main load XML configuration file
+        /// call sub load XML configuration file functions
+        /// </summary>
+        static void LoadConfiguration()
+        {
+            ConfigurationFile = "Configuration.xml";
+            String exepath = Environment.GetCommandLineArgs()[0];
+            String exedir = exepath.Substring(0, exepath.LastIndexOf('\\'));
+            ConfigurationFile = exedir + "\\" + ConfigurationFile;
+
+            XmlDocument xDoc = new XmlDocument();
+
+            debInf.Level = 1;
+            debInf.Versobe = 1;
+            deb = new Debug("Debug.log", ref debInf);
+            deb.Write("Main Program", "Load configuration", DateTime.Now);
+
+            try
+            {
+                xDoc.Load(@ConfigurationFile);
+
+                XmlNode rootNode = xDoc.ChildNodes[1];
+
+                foreach (XmlNode node in rootNode.ChildNodes)
+                {
+                    if (node.Name.CompareTo("program") == 0)
+                    {
+                        LoadConfigurationProgram(node);
+                    }
+                    else if (node.Name.CompareTo("syslog_server") == 0)
+                    {
+                    }
+                    else if (node.Name.CompareTo("filters") == 0)
+                    {
+                        LoadFilters(node);
+                        if (debInf.Versobe == 2)
+                        {
+                            ArrayList list = new ArrayList(iFilters.Keys);
+                            String[] eventLogNames = (String[])list.ToArray(typeof(string));
+
+                            foreach (String eventLogName in eventLogNames)
+                            {
+                                ArrayList itemp = (ArrayList)iFilters[eventLogName];
+                                ArrayList etemp = (ArrayList)eFilters[eventLogName];
+
+                                int iItems = 0;
+                                int eItems = 0;
+
+                                if (itemp != null)
+                                {
+                                    iItems = itemp.Count;
+                                }
+                                if (etemp != null)
+                                {
+                                    eItems = etemp.Count;
+                                }
+
+                                deb.Write("Load configuration", iItems + " include filter(s) and " + eItems + " exclude filter(s) loaded for eventLog : " + eventLogName, DateTime.Now);
+                                itemp = null;
+                                etemp = null;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (XmlException xe)
+            {
+                deb.Write("Load configuration", "101 - Load XML configuration - " + xe.Message, DateTime.Now);
+                deb.Write("Load configuration", "Program stop", DateTime.Now);
+                System.Environment.Exit(-1);
+            }
+            catch (NotSupportedException nse)
+            {
+                deb.Write("Load configuration", "102 - Load XML configuration - " + nse.Message, DateTime.Now);
+                deb.Write("Load configuration", "Program stop", DateTime.Now);
+                System.Environment.Exit(-1);
+            }
+            catch (Exception e)
+            {
+                deb.Write("Load configuration", "103 - Load XML configuration - " + e.Message, DateTime.Now);
+                deb.Write("Load configuration", "Program stop", DateTime.Now);
+                System.Environment.Exit(-1);
+            }
+        }
+
+        /// <summary>
+        /// Load program configuration from specific XML node
+        /// </summary>
+        /// <param name="node">specific XML including program configuration</param>
+        static void LoadConfigurationProgram(XmlNode node)
+        {
+            foreach (XmlNode childnode in node.ChildNodes)
+            {
+                if (childnode.Name.CompareTo("debug") == 0)
+                {
+                    foreach (XmlNode paramNode in childnode.ChildNodes)
+                    {
+                        if (paramNode.Name.CompareTo("level") == 0)
+                        {
+                            try
+                            {
+                                debInf.Level = Convert.ToInt32(paramNode.InnerText);
+                                if (debInf.Versobe == 2)
+                                {
+                                    deb.Write("Load program configuration", "Set level " + debInf.Level, DateTime.Now);
+                                }
+                            }
+                            catch (FormatException fe)
+                            {
+                                debInf.Level = 1;
+                                DateTime temp = DateTime.Now;
+                                deb.Write("Load program configuration", "201 - Get level value - " + fe.Message, temp);
+                                deb.Write("Load program configuration", "201 - Debug level value is set to \"1\"", temp);
+                            }
+                        }
+                        else if (paramNode.Name.CompareTo("verbose") == 0)
+                        {
+                            try
+                            {
+                                debInf.Versobe = Convert.ToInt32(paramNode.InnerText);
+                                if (debInf.Versobe == 2)
+                                {
+                                    deb.Write("Load program configuration", "Set Verbose " + debInf.Level, DateTime.Now);
+                                }
+                            }
+                            catch (FormatException fe)
+                            {
+                                deb.Write("Load program configuration", "202 - Get verbose value - " + fe.Message, DateTime.Now);
+                            }
+                        }
+                        else if (paramNode.Name.CompareTo("max_size") == 0)
+                        {
+                            try
+                            {
+                                debInf.MaxSize = Convert.ToInt32(paramNode.InnerText);
+                                if (debInf.Versobe == 2)
+                                {
+                                    deb.Write("Load program configuration", "Set Debug file max size " + debInf.MaxSize + " MB", DateTime.Now);
+                                }
+                            }
+                            catch (FormatException fe)
+                            {
+                                deb.Write("Load program configuration", "203 - Get max size value - " + fe.Message, DateTime.Now);
+                            }
+                        }
+                        else if (paramNode.Name.CompareTo("file_number") == 0)
+                        {
+                            try
+                            {
+                                debInf.FileNumber = Convert.ToInt32(paramNode.InnerText);
+                                if (debInf.Versobe == 2)
+                                {
+                                    deb.Write("Load program configuration", "Set Debug max number files " + debInf.FileNumber, DateTime.Now);
+                                }
+                            }
+                            catch (FormatException fe)
+                            {
+                                deb.Write("Load program configuration", "204 - Get file number value - " + fe.Message, DateTime.Now);
+                            }
+                        }      
+                    }
+                }
+                else if (childnode.Name.CompareTo("refresh_intervalle") == 0)
+                {
+                    try
+                    {
+                        refreshIntervalle = Convert.ToInt32(childnode.InnerText);
+                        if (debInf.Versobe == 2)
+                        {
+                            deb.Write("Load program configuration", "Set Refresh intervalle " + refreshIntervalle + " minutes", DateTime.Now);
+                        }
+                    }
+                    catch (FormatException fe)
+                    {
+                        deb.Write("Load program configuration", "205 - Getrefresh intervalle value - " + fe.Message, DateTime.Now);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Load filters to find in event log
+        /// </summary>
+        /// <param name="node">specific XML including filter parameters</param>
+        static void LoadFilters(XmlNode node)
+        {
+            String patternSyslogLevel = "Emergency|Alert|Critical|Error|Warning|Notice|Informational|Debug";
+            Regex rSyslogLevel = new Regex(patternSyslogLevel, RegexOptions.IgnoreCase);
+
+            String patternSyslogFacility = "Kern|User|Mail|Daemon|Auth|Syslog|LPR|News|UUCP|Cron|AuthPriv|FTP|NTP|Audit|Audit2|CRON2|Local0|Local1|Local2|Local3|Local4|Local5|Local6|Local7";
+            Regex rSyslogFacility = new Regex(patternSyslogFacility, RegexOptions.IgnoreCase);
+
+            String[] eventLogName = null;
+            Filter iFilter = null;
+            Filter eFilter = null;
+
+            foreach (XmlNode childnode in node.ChildNodes)
+            {
+                eventLogName = null;
+                iFilter = new Filter();
+                eFilter = new Filter();
+
+                foreach (XmlNode cnode in childnode.ChildNodes)
+                {
+                    if (cnode.Name.ToLower().CompareTo("event") == 0)
+                    {
+                        foreach (XmlNode paramNode in cnode.ChildNodes)
+                        {
+                            if (paramNode.Name.ToLower().CompareTo("eventlogname") == 0)
+                            {
+                                ArrayList temp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("#comment") < 0)
+                                    {
+                                        temp.Add(element.InnerText);
+                                    }
+                                }
+                                eventLogName = new String[temp.Count];
+                                int i = 0;
+                                foreach (String item in temp)
+                                {
+                                    eventLogName.SetValue(item, i);
+                                    i++;
+                                }
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("sources") == 0)
+                            {
+                                ArrayList itemp = new ArrayList();
+                                ArrayList etemp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("include") >= 0)
+                                    {
+                                        itemp .Add(element.InnerText);
+                                    }
+                                    else if (element.Name.IndexOf("exclude") >= 0)
+                                    {
+                                        etemp.Add(element.InnerText);
+                                    }
+                                }
+
+                                if (itemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[itemp.Count];
+                                    int i = 0;
+                                    foreach (String item in itemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    iFilter.EventLogSources = strTemp;
+                                }
+
+                                if (etemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[etemp.Count];
+                                    int i = 0;
+                                    foreach (String item in etemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    eFilter.EventLogSources = strTemp;
+                                }
+
+
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("id") == 0)
+                            {
+                                ArrayList itemp = new ArrayList();
+                                ArrayList etemp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("include") >= 0)
+                                    {
+                                        itemp.Add(element.InnerText);
+                                    }
+                                    else if (element.Name.IndexOf("exclude") >= 0)
+                                    {
+                                        etemp.Add(element.InnerText);
+                                    }
+                                }
+
+                                if (itemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[itemp.Count];
+                                    int i = 0;
+                                    foreach (String item in itemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    iFilter.EventLogID = strTemp;
+                                }
+
+                                if (etemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[etemp.Count];
+                                    int i = 0;
+                                    foreach (String item in etemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    eFilter.EventLogID = strTemp;
+                                }
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("users") == 0)
+                            {
+                                ArrayList itemp = new ArrayList();
+                                ArrayList etemp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("include") >= 0)
+                                    {
+                                        itemp.Add(element.InnerText);
+                                    }
+                                    else if (element.Name.IndexOf("exclude") >= 0)
+                                    {
+                                        etemp.Add(element.InnerText);
+                                    }
+                                }
+
+                                if (itemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[itemp.Count];
+                                    int i = 0;
+                                    foreach (String item in itemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    iFilter.User = strTemp;
+                                }
+
+                                if (etemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[etemp.Count];
+                                    int i = 0;
+                                    foreach (String item in etemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    eFilter.User = strTemp;
+                                }
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("computers") == 0)
+                            {
+                                ArrayList itemp = new ArrayList();
+                                ArrayList etemp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("include") >= 0)
+                                    {
+                                        itemp.Add(element.InnerText);
+                                    }
+                                    else if (element.Name.IndexOf("exclude") >= 0)
+                                    {
+                                        etemp.Add(element.InnerText);
+                                    }
+                                }
+
+                                if (itemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[itemp.Count];
+                                    int i = 0;
+                                    foreach (String item in itemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    iFilter.Computer = strTemp;
+                                }
+
+                                if (etemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[etemp.Count];
+                                    int i = 0;
+                                    foreach (String item in etemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    eFilter.Computer = strTemp;
+                                }
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("type") == 0)
+                            {
+                                ArrayList itemp = new ArrayList();
+                                ArrayList etemp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("include") >= 0)
+                                    {
+                                        itemp.Add(element.InnerText);
+                                    }
+                                    else if (element.Name.IndexOf("exclude") >= 0)
+                                    {
+                                        etemp.Add(element.InnerText);
+                                    }
+                                }
+
+                                if (itemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[itemp.Count];
+                                    int i = 0;
+                                    foreach (String item in itemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    iFilter.EventLogType = strTemp;
+                                }
+
+                                if (etemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[etemp.Count];
+                                    int i = 0;
+                                    foreach (String item in etemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    eFilter.EventLogType = strTemp;
+                                }
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("descriptions") == 0)
+                            {
+                                ArrayList itemp = new ArrayList();
+                                ArrayList etemp = new ArrayList();
+                                foreach (XmlNode element in paramNode.ChildNodes)
+                                {
+                                    if (element.Name.IndexOf("include") >= 0)
+                                    {
+                                        itemp.Add(element.InnerText);
+                                    }
+                                    else if (element.Name.IndexOf("exclude") >= 0)
+                                    {
+                                        etemp.Add(element.InnerText);
+                                    }
+                                }
+
+                                if (itemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[itemp.Count];
+                                    int i = 0;
+                                    foreach (String item in itemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    iFilter.EventLogDescriptions = strTemp;
+                                }
+
+                                if (etemp.Count > 0)
+                                {
+                                    String[] strTemp = new String[etemp.Count];
+                                    int i = 0;
+                                    foreach (String item in etemp)
+                                    {
+                                        strTemp.SetValue(item, i);
+                                        i++;
+                                    }
+                                    eFilter.EventLogDescriptions = strTemp;
+                                }
+                            }
+                        }
+                    }
+                    else if (cnode.Name.ToLower().CompareTo("syslog") == 0)
+                    {
+                        foreach (XmlNode paramNode in cnode.ChildNodes)
+                        {
+                            if (paramNode.Name.ToLower().CompareTo("level") == 0)
+                            {
+                                if (rSyslogLevel.IsMatch(paramNode.InnerText))
+                                {
+                                    iFilter.SyslogLevel = paramNode.InnerText;
+                                    eFilter.SyslogLevel = paramNode.InnerText;
+                                }
+                                else
+                                {
+                                    deb.Write("Load filters configuration", "301 - Uncorrect syslog level : \"" + paramNode.InnerText + "\"", DateTime.Now);
+                                }
+                            }
+                            else if (paramNode.Name.ToLower().CompareTo("facility") == 0)
+                            {
+                                if (rSyslogFacility.IsMatch(paramNode.InnerText))
+                                {
+                                    iFilter.SyslogFacility = paramNode.InnerText;
+                                    eFilter.SyslogFacility = paramNode.InnerText;
+                                }
+                                else
+                                {
+                                    deb.Write("Load filters configuration", "301 - Uncorrect syslog facility : \"" + paramNode.InnerText + "\"", DateTime.Now);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (eventLogName != null)
+                {
+                    foreach (String element in eventLogName)
+                    {
+                        ArrayList itemp = null;
+                        itemp = (ArrayList)iFilters[element];
+                        ArrayList etemp = null;
+                        etemp = (ArrayList)eFilters[element];
+
+                        if ((itemp != null) && !iFilter.IsEmpty())
+                        {
+                            itemp.Add(iFilter);
+                            if (debInf.Versobe == 2)
+                            {
+                                deb.Write("Load filters configuration", "Add to filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
+                            }
+                            iFilters[element] = itemp;
+                        }
+                        else if ((itemp == null) && !iFilter.IsEmpty())
+                        {
+                            itemp = new ArrayList();
+                            itemp.Add(iFilter);
+                            if (debInf.Versobe == 2)
+                            {
+                                deb.Write("Load filters configuration", "Add to filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
+                            }
+                            iFilters[element] = itemp;
+                        }
+
+                        if ((etemp != null) && !eFilter.IsEmpty())
+                        {
+                            etemp.Add(eFilter);
+                            if (debInf.Versobe == 2)
+                            {
+                                deb.Write("Load filters configuration", "Add to exclude filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
+                            }
+                            eFilters[element] = etemp;
+                        }
+                        else if ((etemp == null) && !eFilter.IsEmpty())
+                        {
+                            etemp = new ArrayList();
+                            etemp.Add(eFilter);
+                            if (debInf.Versobe == 2)
+                            {
+                                deb.Write("Load filters configuration", "Add to exclude filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
+                            }
+                            eFilters[element] = etemp;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Start process:
+        /// 1 - Control if process already exist and quit if exist
+        /// 2 - Loop while process not receive order to stop it
+        /// 3 - Load configuration
+        /// 4 - Launch thread to parse event log
+        /// 5 - Wait x seconds berore goto 3
+        /// </summary>
+        static void Start()
+        {
+            if (ProcessAlreadyExist() == true)
+            {
+                System.Environment.Exit(-1);
+            }
+
+            lastExecTime = DateTime.Now.AddMinutes(-120);
+            maxExecTime = DateTime.Now;
+
+            do
+            {
+                iFilters = new Hashtable();
+                eFilters = new Hashtable();
+
+                LoadConfiguration();
+                StartThread();
+                WaitHandle.WaitAll(doneEvents);
+
+                iFilters = null;
+                eFilters = null;
+
+                nextCheck = maxExecTime.AddMinutes(refreshIntervalle);
+
+                DateTime dtNow = DateTime.Now;
+                int now = dtNow.Minute * 60 + dtNow.Second;
+                int sleep = ((nextCheck.Minute * 60 + nextCheck.Second) - now);
+
+                if (debInf.Versobe == 2)
+                {
+                    deb.Write("Main program", "Sleep for " + sleep + " seconds", DateTime.Now);
+                }
+
+                do
+                {
+                    Thread.Sleep(1000);
+                    if (isActive == false)
+                        break;
+                    sleep--;
+                }
+                while (sleep > 0);
+
+                lastExecTime = maxExecTime;
+                maxExecTime = DateTime.Now;
+
+            }
+            while (isActive);
+
+            deb.Write("Main program", "Program stop", DateTime.Now);
+            System.Environment.Exit(0);
+        }
+
+        /// <summary>
+        /// Start one thread ThreadFilter by event log name
+        /// </summary>
+        static void StartThread()
+        {
+            deb.Write("Preparation of Threads", "Start threads", DateTime.Now);
+
+            ArrayList list = new ArrayList(iFilters.Keys);
+            String[] eventLogNames = (String[])list.ToArray(typeof(string));
+
+            doneEvents = new ManualResetEvent[eventLogNames.Length];
+
+            try
+            {
+                int i = 0;
+                foreach (String eventLog in eventLogNames)
+                {
+                    try
+                    {
+                        ThreadFilter[] filterArray = new ThreadFilter[eventLogNames.Length];
+
+                        doneEvents[i] = new ManualResetEvent(false);
+                        ThreadFilter tf = new ThreadFilter(eventLog, null, (ArrayList)iFilters[eventLog], (ArrayList)eFilters[eventLog], ref deb, lastExecTime, maxExecTime, doneEvents[i]);
+                        filterArray[i] = tf;
+
+                        ThreadPool.QueueUserWorkItem(tf.ThreadLoop, i);
+                    }
+                    catch (System.NullReferenceException e)
+                    {
+                        deb.Write("Preparation of Threads", "401 - Problem starting thread for " + eventLog + "package rules due to: " + e.Message, DateTime.Now);
+                    }
+                    i++;
+                }
+            }
+            catch (System.NullReferenceException e)
+            {
+                deb.Write("Preparation of Threads", "402 - Problem starting threads due to: " + e.Message, DateTime.Now);
+                System.Environment.Exit(-1);
+            }
+
+            deb.Write("Preparation of Threads", "End of starting threads", DateTime.Now);
+        }
+
+        /// <summary>
+        /// Test if exist process exist
+        /// </summary>
+        /// <returns>True if process exist</returns>
+        private static bool ProcessAlreadyExist()
+        {
+            Process currentProcess = Process.GetCurrentProcess();
+
+            foreach (Process p in Process.GetProcesses())
+            {
+                if (p.Id != currentProcess.Id && p.ProcessName.Equals(currentProcess.ProcessName) == true)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Get or set isActive value
+        /// If value is false, principal process run by Start method finish
+        /// </summary>
+        public static Boolean isActive
+        {
+            get
+            {
+                return _isActive;
+            }
+
+            set
+            {
+                _isActive = value;
+            }
+        }
+    }
+}
