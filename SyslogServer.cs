@@ -40,6 +40,7 @@
 //#
 //####################################################################################
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -55,6 +56,9 @@ namespace Centreon_EventLog_2_Syslog
         private int _FileBufferMaxSizeInMB = 10;
         private int _MemoryBufferMaxSize = 200;
 
+        private Hashtable Level = new Hashtable();
+        private Hashtable Facility = new Hashtable();
+
         /// <summary>
         /// Definition of distant syslog server. This constructor set UDP protocol.
         /// </summary>
@@ -62,6 +66,7 @@ namespace Centreon_EventLog_2_Syslog
         public SyslogServer(String serverAddress)
         {
             SetServerAddress(serverAddress);
+            SetSyslogLevelAndFacility();
         }
 
         /// <summary>
@@ -73,6 +78,7 @@ namespace Centreon_EventLog_2_Syslog
         {
             SetServerAddress(serverAddress);
             SetProtocol(protocol);
+            SetSyslogLevelAndFacility();
         }
 
         /// <summary>
@@ -86,6 +92,7 @@ namespace Centreon_EventLog_2_Syslog
             SetServerAddress(serverAddress);
             SetPort(port);
             SetProtocol(protocol.ToLower());
+            SetSyslogLevelAndFacility();
         }
 
         /// <summary>
@@ -101,6 +108,7 @@ namespace Centreon_EventLog_2_Syslog
             SetPort(port);
             SetProtocol(protocol.ToLower());
             this._MemoryBufferMaxSize = memoryBufferMaxSize;
+            SetSyslogLevelAndFacility();
         }
 
         /// <summary>
@@ -118,6 +126,7 @@ namespace Centreon_EventLog_2_Syslog
             SetProtocol(protocol.ToLower());
             this._MemoryBufferMaxSize = memoryBufferMaxSize;
             this._FileBufferMaxSizeInMB = fileBufferMaxSizeInMB;
+            SetSyslogLevelAndFacility();
         }
 
         /// <summary>
@@ -141,13 +150,15 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="protocol">Protocol: UDP or TCP</param>
         private void SetProtocol(String protocol)
         {
-            if ((protocol.ToLower().CompareTo("udp") != 0) || (protocol.ToLower().CompareTo("tcp") != 0))
+            if ((protocol.ToLower().CompareTo("udp") == 0) || (protocol.ToLower().CompareTo("tcp") == 0))
+            {
+                this._Protocol = protocol;
+            }
+            else
             {
                 ArgumentOutOfRangeException ex = new ArgumentOutOfRangeException("Argument must be UDP or TCP");
                 throw ex;
-
             }
-            this._Protocol = protocol;
         }
 
         /// <summary>
@@ -184,10 +195,82 @@ namespace Centreon_EventLog_2_Syslog
         /// <summary>
         /// Send event to syslog server
         /// </summary>
-        /// <param name="eventLogEntry"></param>
-        /// <param name="debug"></param>
-        public void SendEvent(EventLogEntry eventLogEntry, Debug debug)
+        /// <param name="evebntLogName">EventLog name</param>
+        /// <param name="eventLogEntry">Event to transfert to syslog server</param>
+        /// <param name="debug">Debug object</param>
+        public void SendEvent(String evebntLogName, EventLogEntry eventLogEntry, ref Debug debug)
         {
+            String MESSAGE = PrepareSyslogEvent(evebntLogName, eventLogEntry, ref debug);
+            debug.Write("Syslog Server", "Event to send: " + MESSAGE, DateTime.Now);
+        }
+
+        /// <summary>
+        /// Add syslog facilities and levels into Hashtable
+        /// </summary>
+        private void SetSyslogLevelAndFacility()
+        {
+            Level.Add("Emergency", 0);
+            Level.Add("Alert", 1);
+            Level.Add("Critical", 2);
+            Level.Add("Error", 3);
+            Level.Add("Warning", 4);
+            Level.Add("Notice", 5);
+            Level.Add("Informational", 6);
+            Level.Add("Debug", 7);
+
+            Facility.Add("Kern", 0);
+            Facility.Add("User", 1);
+            Facility.Add("Mail", 2);
+            Facility.Add("Daemon", 3);
+            Facility.Add("Auth", 4);
+            Facility.Add("Syslog", 5);
+            Facility.Add("LPR", 6);
+            Facility.Add("News", 7);
+            Facility.Add("UUCP", 8);
+            Facility.Add("Cron", 9);
+            Facility.Add("AuthPriv", 10);
+            Facility.Add("FTP", 11);
+            Facility.Add("NTP", 12);
+            Facility.Add("Audit", 13);
+            Facility.Add("Audit2", 14);
+            Facility.Add("CRON2", 15);
+            Facility.Add("Local0", 16);
+            Facility.Add("Local1", 17);
+            Facility.Add("Local2", 18);
+            Facility.Add("Local3", 19);
+            Facility.Add("Local4", 20);
+            Facility.Add("Local5", 21);
+            Facility.Add("Local6", 22);
+            Facility.Add("Local7", 23);
+        }
+
+        /// <summary>
+        /// Transform EventLogEntry to String
+        /// </summary>
+        /// <param name="evebntLogName">EventLog name</param>
+        /// <param name="eventLogEntry">Event to transfert to syslog server</param>
+        /// <param name="debug">Debug object</param>
+        /// <returns>String of syslog event to transfert</returns>
+        private String PrepareSyslogEvent(String evebntLogName, EventLogEntry eventLogEntry, ref Debug debug)
+        {
+            // Prepare message will sent to syslog server
+            String body = evebntLogName + " Source: " + eventLogEntry.Source + " Type: " + eventLogEntry.EntryType.ToString();
+
+            if (eventLogEntry.Category != null)
+                body = body + " Category: " + eventLogEntry.Category;
+
+            if (eventLogEntry.EventID != 0)
+                body = body + " Event ID: " + eventLogEntry.EventID;
+
+            if (eventLogEntry.UserName != null)
+                body = body + " User: " + eventLogEntry.UserName;
+
+            if (eventLogEntry.MachineName != null)
+                body = body + " Computer: " + eventLogEntry.MachineName;
+
+            body = body + " DateTime: " + eventLogEntry.TimeWritten.ToString() + " Description: " + eventLogEntry.Message;
+
+            return null;
         }
 
         /// <summary>

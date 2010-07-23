@@ -57,6 +57,7 @@ namespace Centreon_EventLog_2_Syslog
         private static Hashtable eFilters = null;
         private static Int32 refreshIntervalle = 0;
         private static Boolean _isActive = true;
+        private static SyslogServer syslogServer = null;
 
         public static DateTime lastExecTime;
         public static DateTime maxExecTime;
@@ -101,10 +102,17 @@ namespace Centreon_EventLog_2_Syslog
                     }
                     else if (node.Name.CompareTo("syslog_server") == 0)
                     {
+                        LoadSyslogConfiguration(node);
+
+                        if (debInf.Versobe == 2)
+                        {
+                            deb.Write("Load Syslog Server Configuration", "Syslog server configuration: " + syslogServer.ToString(), DateTime.Now);
+                        }
                     }
                     else if (node.Name.CompareTo("filters") == 0)
                     {
                         LoadFilters(node);
+
                         if (debInf.Versobe == 2)
                         {
                             ArrayList list = new ArrayList(iFilters.Keys);
@@ -620,6 +628,59 @@ namespace Centreon_EventLog_2_Syslog
                             }
                             eFilters[element] = etemp;
                         }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Load Syslog server parameters
+        /// </summary>
+        /// <param name="node">specific XML including Syslog server parameters</param>
+        static void LoadSyslogConfiguration(XmlNode node)
+        {
+            // TODO : Load Syslog server parameters
+            foreach (XmlNode childnode in node.ChildNodes)
+            {
+                if (childnode.Name.CompareTo("server") == 0)
+                {
+                    String address = null;
+                    int port = 0;
+                    String protocol = null;
+
+                    foreach (XmlNode paramNode in childnode.ChildNodes)
+                    {
+                        if (paramNode.Name.CompareTo("address") == 0)
+                        {
+                            address = paramNode.InnerText;
+                        }
+                        else if (paramNode.Name.CompareTo("port") == 0)
+                        {
+                            try
+                            {
+                                port = Convert.ToInt32(paramNode.InnerText);
+                            }
+                            catch (SystemException se)
+                            {
+                                deb.Write("Load Syslog Server Configuration", "Set port = 514 because: " + se.Message, DateTime.Now);
+                                port = 514;
+                            }
+                        }
+                        else if (paramNode.Name.CompareTo("protocole") == 0)
+                        {
+                            protocol = paramNode.InnerText;
+                        }
+                    }
+
+                    try
+                    {
+                        syslogServer = new SyslogServer(address, protocol, port);
+                    }
+                    catch (Exception e)
+                    {
+                        deb.Write("Load Syslog Server Configuration", "Configuration of syslog server is not correct: " + e.Message, DateTime.Now);
+                        deb.Write("Load Syslog Server Configuration", "Program abort", DateTime.Now);
+                        System.Environment.Exit(-1);
                     }
                 }
             }
