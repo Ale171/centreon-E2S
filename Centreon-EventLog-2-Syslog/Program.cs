@@ -65,16 +65,18 @@ namespace Centreon_EventLog_2_Syslog
 
         private static ManualResetEvent[] doneEvents = null;
 
-        static void Main(string[] args)
+        /// <summary>
+        /// Simple constructor
+        /// </summary>
+        public Program()
         {
-            Start();
         }
 
         /// <summary>
         /// Main load XML configuration file
         /// call sub load XML configuration file functions
         /// </summary>
-        static void LoadConfiguration()
+        private void LoadConfiguration()
         {
             ConfigurationFile = "Configuration.xml";
             String exepath = Environment.GetCommandLineArgs()[0];
@@ -167,7 +169,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Load program configuration from specific XML node
         /// </summary>
         /// <param name="node">specific XML including program configuration</param>
-        static void LoadConfigurationProgram(XmlNode node)
+        private void LoadConfigurationProgram(XmlNode node)
         {
             foreach (XmlNode childnode in node.ChildNodes)
             {
@@ -237,7 +239,7 @@ namespace Centreon_EventLog_2_Syslog
                             {
                                 deb.Write("Load program configuration", "204 - Get file number value - " + fe.Message, DateTime.Now);
                             }
-                        }      
+                        }
                     }
                 }
                 else if (childnode.Name.CompareTo("refresh_intervalle") == 0)
@@ -262,7 +264,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Load filters to find in event log
         /// </summary>
         /// <param name="node">specific XML including filter parameters</param>
-        static void LoadFilters(XmlNode node)
+        private void LoadFilters(XmlNode node)
         {
             String patternSyslogLevel = "Emergency|Alert|Critical|Error|Warning|Notice|Informational|Debug";
             Regex rSyslogLevel = new Regex(patternSyslogLevel, RegexOptions.IgnoreCase);
@@ -312,7 +314,7 @@ namespace Centreon_EventLog_2_Syslog
                                 {
                                     if (element.Name.IndexOf("include") >= 0)
                                     {
-                                        itemp .Add(element.InnerText);
+                                        itemp.Add(element.InnerText);
                                     }
                                     else if (element.Name.IndexOf("exclude") >= 0)
                                     {
@@ -637,7 +639,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Load Syslog server parameters
         /// </summary>
         /// <param name="node">specific XML including Syslog server parameters</param>
-        static void LoadSyslogConfiguration(XmlNode node)
+        private void LoadSyslogConfiguration(XmlNode node)
         {
             // TODO : Load Syslog server parameters
             foreach (XmlNode childnode in node.ChildNodes)
@@ -694,7 +696,7 @@ namespace Centreon_EventLog_2_Syslog
         /// 4 - Launch thread to parse event log
         /// 5 - Wait x seconds berore goto 3
         /// </summary>
-        static void Start()
+        public void Start()
         {
             if (ProcessAlreadyExist() == true)
             {
@@ -749,7 +751,7 @@ namespace Centreon_EventLog_2_Syslog
         /// <summary>
         /// Start one thread ThreadFilter by event log name
         /// </summary>
-        static void StartThread()
+        private void StartThread()
         {
             deb.Write("Preparation of Threads", "Start threads", DateTime.Now);
 
@@ -793,7 +795,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Test if exist process exist
         /// </summary>
         /// <returns>True if process exist</returns>
-        private static bool ProcessAlreadyExist()
+        private bool ProcessAlreadyExist()
         {
             Process currentProcess = Process.GetCurrentProcess();
 
@@ -809,7 +811,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Get or set isActive value
         /// If value is false, principal process run by Start method finish
         /// </summary>
-        public static Boolean isActive
+        public Boolean isActive
         {
             get
             {
