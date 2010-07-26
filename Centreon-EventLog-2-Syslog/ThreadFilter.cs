@@ -55,6 +55,7 @@ namespace Centreon_EventLog_2_Syslog
         private DateTime _MaxExecTime;
         private ArrayList _iFilters = null;
         private ArrayList _eFilters = null;
+        private Filter iFilter = null;
         private ManualResetEvent _DoneEvent;
 
         /// <summary>
@@ -67,7 +68,7 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="lastExecTime">Min time search</param>
         /// <param name="maxExecTime">Mas time search</param>
         /// <param name="doneEvent">ManualResetEvent object to know if process if complit</param>
-        public ThreadFilter(String logName, SyslogServer syslogServer, ArrayList iFilters, ArrayList eFilters, ref Debug debug,
+        public ThreadFilter(String logName, ref SyslogServer syslogServer, ArrayList iFilters, ArrayList eFilters, ref Debug debug,
             DateTime lastExecTime, DateTime maxExecTime, ManualResetEvent doneEvent)
         {
             _LogName = logName;
@@ -125,16 +126,43 @@ namespace Centreon_EventLog_2_Syslog
                         Boolean isExclude = false;
                         Boolean isInclude = false;
 
-                        isExclude = TestEvent(eventLogEntry, this._eFilters);
+                        try
+                        {
+                            if (this._eFilters != null)
+                            {
+                                isExclude = TestEvent(eventLogEntry, this._eFilters);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            this._Debug.Write("Thread " + _LogName, "Problem during check if event is exclude: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now);
+                        }
 
                         if (!isExclude)
                         {
-                            isInclude = TestEvent(eventLogEntry, this._iFilters);
+                            try
+                            {
+                                if (this._iFilters != null)
+                                {
+                                    isInclude = TestEvent(eventLogEntry, this._iFilters);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                this._Debug.Write("Thread " + _LogName, "Problem during check if event is include: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now);
+                            }
                         }
 
                         if (isInclude)
                         {
-                            this._SyslogServer.SendEvent(this._LogName, eventLogEntry, ref this._Debug);
+                            try
+                            {
+                                this._SyslogServer.SendEvent(this._LogName, eventLogEntry, iFilter, ref this._Debug);
+                            }
+                            catch (Exception e)
+                            {
+                                this._Debug.Write("Thread " + _LogName, "Unable to send eventLogEntry to syslogServer process because : " + e.Message, DateTime.Now);
+                            }
                         }
                     }
                     else if (elapsedTimeMin >= 0)
@@ -173,6 +201,8 @@ namespace Centreon_EventLog_2_Syslog
             Boolean bEventLogType = false;
             Boolean bEventLogDescriptions = false;
 
+            iFilter = null;
+
             foreach (Filter filter in filters)
             {
                 // Check MachineName
@@ -201,7 +231,7 @@ namespace Centreon_EventLog_2_Syslog
                 {
                     foreach (String Description in filter.EventLogDescriptions)
                     {
-                        if ((Description.CompareTo("*") == 0) || (Description.CompareTo(actualEventLog.Message) == 0))
+                        if ((Description.CompareTo("*") == 0) || (Description.IndexOf(actualEventLog.Message) >= 0))
                         {
                             bEventLogDescriptions = true;
                             break;
@@ -252,7 +282,7 @@ namespace Centreon_EventLog_2_Syslog
                 {
                     foreach (String Type in filter.EventLogType)
                     {
-                        if ((Type.CompareTo("*") == 0) || (Type.CompareTo(actualEventLog.EntryType.ToString()) == 0))
+                        if ((Type.CompareTo("*") == 0) || (Type.ToLower().CompareTo(actualEventLog.EntryType.ToString().ToLower()) == 0))
                         {
                             bEventLogType = true;
                             break;
@@ -279,6 +309,7 @@ namespace Centreon_EventLog_2_Syslog
 
                 if (bEventLogsources && bEventLogID && bUser && bComputer && bEventLogType && bEventLogDescriptions)
                 {
+                    iFilter = filter;
                     return true;
                 }
             }
