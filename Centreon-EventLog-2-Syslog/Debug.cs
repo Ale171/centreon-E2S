@@ -140,6 +140,10 @@ namespace Centreon_EventLog_2_Syslog
                 {
                     Console.WriteLine(ioe.Message);
                 }
+                catch (System.Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
             }
 
             return true;
@@ -156,7 +160,8 @@ namespace Centreon_EventLog_2_Syslog
             int nbDebufFile = 0;
             foreach (String file in files)
             {
-                Regex re = new Regex(@"\w+:\\\w+\\Debug.log.*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
+                //Regex re = new Regex(@"\w+:\\\w+\\Debug.log.\d", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
+                Regex re = new Regex(@"Debug.log.\d$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
 
                 if (re.IsMatch(file))
                 {
@@ -165,28 +170,54 @@ namespace Centreon_EventLog_2_Syslog
             }
 
             // Delete old debug file
-            if (nbDebufFile++ > this._DebugInfo.FileNumber)
+            if (nbDebufFile >= this._DebugInfo.FileNumber)
             {
-                for (int i = nbDebufFile; i > 0; i--)
+                foreach (String file in files)
                 {
-                    foreach (String file in files)
-                    {
-                        Regex re = new Regex(@"\w+:\\\w+\\Debug.log." + i, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
-                        String destFile = file.Substring(0, file.LastIndexOf('\\')) + "Debug.log." + (i - 1);
+                    String pattern = "Debug.log.";
+                    String fileNumber = file.Substring(file.LastIndexOf(pattern) + pattern.Length, 1);
+                    int ifileNumber = 0;
 
-                        if (re.IsMatch(file))
+                    try
+                    {
+                        ifileNumber = Convert.ToInt32(fileNumber);
+                        if (ifileNumber >= this._DebugInfo.FileNumber)
                         {
-                            if (i != nbDebufFile)
-                            {
-                                File.Copy(file, destFile, true);
-                            }
                             File.Delete(file);
                         }
                     }
+                    catch (Exception e)
+                    {
+                    }
+                }
+            }
+            // Rename debug files
+            // TODO : faire la rotation :D
+
+            // Debug.log.5 => delete
+            // Debug.log.4 => Debug.log.5
+            // Debug.log.3 => Debug.log.4
+            // Debug.log.2 => Debug.log.1
+            // Debug.log => Debug.log.1
+
+            for (int i = nbDebufFile; i > 1; i--)
+            {
+                try
+                {
+                    File.Move(this._Path + "\\Debug.log." + (i - 1), this._Path + "\\Debug.log." + i);
+                }
+                catch (Exception e)
+                {
                 }
             }
 
-            // Rename debug files
+            try
+            {
+                File.Move(this._Path + "\\Debug.log", this._Path + "\\Debug.log.1");
+            }
+            catch (Exception e)
+            {
+            }
         }
 
         /// <summary>
