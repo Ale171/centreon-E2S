@@ -340,6 +340,9 @@ namespace Centreon_EventLog_2_Syslog
 
             body = body + ", Description: " + eventLogEntry.Message;
 
+            body = body.Replace('\r', ' ');
+            body = body.Replace('\n', ' ');
+
             return body;
         }
 
