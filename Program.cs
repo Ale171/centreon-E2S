@@ -768,7 +768,7 @@ namespace Centreon_EventLog_2_Syslog
                         ThreadFilter[] filterArray = new ThreadFilter[eventLogNames.Length];
 
                         doneEvents[i] = new ManualResetEvent(false);
-                        ThreadFilter tf = new ThreadFilter(eventLog, null, (ArrayList)iFilters[eventLog], (ArrayList)eFilters[eventLog], ref deb, lastExecTime, maxExecTime, doneEvents[i]);
+                        ThreadFilter tf = new ThreadFilter(eventLog, ref syslogServer, (ArrayList)iFilters[eventLog], (ArrayList)eFilters[eventLog], ref deb, lastExecTime, maxExecTime, doneEvents[i]);
                         filterArray[i] = tf;
 
                         ThreadPool.QueueUserWorkItem(tf.ThreadLoop, i);

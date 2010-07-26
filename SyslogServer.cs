@@ -43,6 +43,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -197,11 +199,82 @@ namespace Centreon_EventLog_2_Syslog
         /// </summary>
         /// <param name="evebntLogName">EventLog name</param>
         /// <param name="eventLogEntry">Event to transfert to syslog server</param>
+        /// <param name="filter">Filter with Syslog facility and level</param>
         /// <param name="debug">Debug object</param>
-        public void SendEvent(String evebntLogName, EventLogEntry eventLogEntry, ref Debug debug)
+        public void SendEvent(String eventLogName, EventLogEntry eventLogEntry, Filter filter, ref Debug debug)
         {
-            String MESSAGE = PrepareSyslogEvent(evebntLogName, eventLogEntry, ref debug);
-            debug.Write("Syslog Server", "Event to send: " + MESSAGE, DateTime.Now);
+            String message = PrepareSyslogEvent(eventLogName, eventLogEntry, ref debug);
+            SendEventByUDP(message, eventLogName, eventLogEntry, filter, ref debug);
+        }
+
+        /// <summary>
+        /// Send event to syslog server
+        /// </summary>
+        /// <param name="message">Message to send</param>
+        /// <param name="evebntLogName">EventLog name</param>
+        /// <param name="eventLogEntry">Event to transfert to syslog server</param>
+        /// <param name="filter">Filter with Syslog facility and level</param>
+        /// <param name="debug">Debug object</param>
+        /// <returns>True if any error appear</returns>
+        private Boolean SendEventByUDP(String message, String eventLogName, EventLogEntry eventLogEntry, Filter filter, ref Debug debug)
+        {
+            //ASCIIEncoding ascii = new ASCIIEncoding();
+            IPAddress[] ServersAddress;
+
+            // Create syslog tag and remove syslog message accents
+            Int32 pri = (int)Facility[filter.SyslogFacility.ToLower()] * 8 + (int)Level[filter.SyslogLevel.ToLower()];
+            String body = "<" + pri + ">" + eventLogEntry.MachineName + " " + message;
+
+            //string[] strParams = { "<" + ((int)Facility[filter.SyslogFacility] * 8 + (int)Level[filter.SyslogLevel]) + ">", eventLogName + " ", message};
+            
+            // Convert final message in bytes
+            //byte[] rawMsg = Encoding.ASCII.GetBytes(string.Concat(strParams));
+            byte[] rawMsg = Encoding.Default.GetBytes(body);
+
+            try
+            {
+                ServersAddress = Dns.GetHostAddresses(this._ServerAddress);
+
+                //UdpClient udp = new UdpClient(this._ServerAddress, this._ServerPort);
+                String temp = ServersAddress.GetValue(0).ToString();
+
+                for (int i = 0; i < ServersAddress.Length; i++)
+                {
+                    UdpClient udp = new UdpClient(ServersAddress.GetValue(i).ToString(), this._ServerPort);
+
+                    udp.Send(rawMsg, rawMsg.Length);
+                    debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now);
+                    udp.Close();
+                    udp = null;
+                } 
+            }
+            catch (SocketException e)
+            {
+                debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (ArgumentNullException e)
+            {
+                debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (ArgumentOutOfRangeException e)
+            {
+                debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (ObjectDisposedException e)
+            {
+                debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (InvalidOperationException e)
+            {
+                debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -209,39 +282,39 @@ namespace Centreon_EventLog_2_Syslog
         /// </summary>
         private void SetSyslogLevelAndFacility()
         {
-            Level.Add("Emergency", 0);
-            Level.Add("Alert", 1);
-            Level.Add("Critical", 2);
-            Level.Add("Error", 3);
-            Level.Add("Warning", 4);
-            Level.Add("Notice", 5);
-            Level.Add("Informational", 6);
-            Level.Add("Debug", 7);
+            Level.Add("emergency", 0);
+            Level.Add("alert", 1);
+            Level.Add("critical", 2);
+            Level.Add("error", 3);
+            Level.Add("warning", 4);
+            Level.Add("notice", 5);
+            Level.Add("informational", 6);
+            Level.Add("debug", 7);
 
-            Facility.Add("Kern", 0);
-            Facility.Add("User", 1);
-            Facility.Add("Mail", 2);
-            Facility.Add("Daemon", 3);
-            Facility.Add("Auth", 4);
-            Facility.Add("Syslog", 5);
-            Facility.Add("LPR", 6);
-            Facility.Add("News", 7);
-            Facility.Add("UUCP", 8);
-            Facility.Add("Cron", 9);
-            Facility.Add("AuthPriv", 10);
-            Facility.Add("FTP", 11);
-            Facility.Add("NTP", 12);
-            Facility.Add("Audit", 13);
-            Facility.Add("Audit2", 14);
-            Facility.Add("CRON2", 15);
-            Facility.Add("Local0", 16);
-            Facility.Add("Local1", 17);
-            Facility.Add("Local2", 18);
-            Facility.Add("Local3", 19);
-            Facility.Add("Local4", 20);
-            Facility.Add("Local5", 21);
-            Facility.Add("Local6", 22);
-            Facility.Add("Local7", 23);
+            Facility.Add("kern", 0);
+            Facility.Add("user", 1);
+            Facility.Add("mail", 2);
+            Facility.Add("daemon", 3);
+            Facility.Add("auth", 4);
+            Facility.Add("syslog", 5);
+            Facility.Add("lpr", 6);
+            Facility.Add("news", 7);
+            Facility.Add("uucp", 8);
+            Facility.Add("cron", 9);
+            Facility.Add("authPriv", 10);
+            Facility.Add("ftp", 11);
+            Facility.Add("ntp", 12);
+            Facility.Add("audit", 13);
+            Facility.Add("audit2", 14);
+            Facility.Add("cron2", 15);
+            Facility.Add("local0", 16);
+            Facility.Add("local1", 17);
+            Facility.Add("local2", 18);
+            Facility.Add("local3", 19);
+            Facility.Add("local4", 20);
+            Facility.Add("local5", 21);
+            Facility.Add("local6", 22);
+            Facility.Add("local7", 23);
         }
 
         /// <summary>
@@ -254,23 +327,20 @@ namespace Centreon_EventLog_2_Syslog
         private String PrepareSyslogEvent(String evebntLogName, EventLogEntry eventLogEntry, ref Debug debug)
         {
             // Prepare message will sent to syslog server
-            String body = evebntLogName + " Source: " + eventLogEntry.Source + " Type: " + eventLogEntry.EntryType.ToString();
+            String body = eventLogEntry.Source.Replace(" ", "_") + " Type: " + eventLogEntry.EntryType.ToString();
 
             if (eventLogEntry.Category != null)
-                body = body + " Category: " + eventLogEntry.Category;
+                body = body + ", Category: " + eventLogEntry.Category;
 
             if (eventLogEntry.EventID != 0)
-                body = body + " Event ID: " + eventLogEntry.EventID;
+                body = body + ", Event ID: " + eventLogEntry.EventID;
 
             if (eventLogEntry.UserName != null)
-                body = body + " User: " + eventLogEntry.UserName;
+                body = body + ", User: " + eventLogEntry.UserName;
 
-            if (eventLogEntry.MachineName != null)
-                body = body + " Computer: " + eventLogEntry.MachineName;
+            body = body + ", Description: " + eventLogEntry.Message;
 
-            body = body + " DateTime: " + eventLogEntry.TimeWritten.ToString() + " Description: " + eventLogEntry.Message;
-
-            return null;
+            return body;
         }
 
         /// <summary>
