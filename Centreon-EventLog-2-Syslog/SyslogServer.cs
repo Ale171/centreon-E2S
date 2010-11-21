@@ -41,12 +41,13 @@
 //####################################################################################
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Centreon_EventLog_2_Syslog
 {
@@ -54,12 +55,20 @@ namespace Centreon_EventLog_2_Syslog
     {
         private String _ServerAddress;
         private String _Protocol = "udp";
-        private int _ServerPort = 514;
-        private int _FileBufferMaxSizeInMB = 10;
-        private int _MemoryBufferMaxSize = 200;
+        private int _ServerPort = 514; private int _MemoryBufferMaxSize = 200;
 
         private Hashtable Level = new Hashtable();
         private Hashtable Facility = new Hashtable();
+
+        private Queue SendQueue = new Queue();
+        public Thread Sending_thread = null;
+
+        public bool connected = false;
+        public bool sending = false;
+
+        private Debug _Debug;
+
+        #region Constructors
 
         /// <summary>
         /// Definition of distant syslog server. This constructor set UDP protocol.
@@ -120,15 +129,15 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="protocol">Protocol: UDP or TCP</param>
         /// <param name="port">Integer between 1 to 65535</param>
         /// <param name="memoryBufferMaxSize">Memory buffer size. Only used for TCP protocol.</param>
-        /// <param name="fileBufferMaxSizeInMB">File buffer max size in MB. Only used for TCP protocol.</param>
-        public SyslogServer(String serverAddress, String protocol, int port, int memoryBufferMaxSize, int fileBufferMaxSizeInMB)
+        /// <param name="debug">Debug object</param>
+        public SyslogServer(String serverAddress, String protocol, int port, int memoryBufferMaxSize, ref Debug debug)
         {
             SetServerAddress(serverAddress);
             SetPort(port);
             SetProtocol(protocol.ToLower());
             this._MemoryBufferMaxSize = memoryBufferMaxSize;
-            this._FileBufferMaxSizeInMB = fileBufferMaxSizeInMB;
             SetSyslogLevelAndFacility();
+            this._Debug = debug;
         }
 
         /// <summary>
@@ -194,17 +203,32 @@ namespace Centreon_EventLog_2_Syslog
             }
         }
 
+        public void SetSyslogServer(String ServerAddress, int ServerPort)
+        {
+            this._ServerAddress = ServerAddress;
+            this._ServerPort = ServerPort;
+        }
+
+        #endregion
+
         /// <summary>
-        /// Send event to syslog server
+        /// Send event to syslog server using UDP protocol
         /// </summary>
         /// <param name="evebntLogName">EventLog name</param>
         /// <param name="eventLogEntry">Event to transfert to syslog server</param>
         /// <param name="filter">Filter with Syslog facility and level</param>
         /// <param name="debug">Debug object</param>
-        public void SendEvent(String eventLogName, EventLogEntry eventLogEntry, Filter filter, ref Debug debug)
+        public void SendEvent(String eventLogName, EventLogEntry eventLogEntry, Filter filter)
         {
-            String message = PrepareSyslogEvent(eventLogName, eventLogEntry, ref debug);
-            SendEventByUDP(message, eventLogName, eventLogEntry, filter, ref debug);
+            String message = PrepareSyslogEvent(eventLogName, eventLogEntry);
+            if (_Protocol.CompareTo("udp") == 0)
+            {
+                SendEventByUDP(message, eventLogName, eventLogEntry, filter);
+            }
+            else if (_Protocol.CompareTo("tcp") == 0)
+            {
+                SendEventByTCP(message, eventLogName, eventLogEntry, filter);
+            }
         }
 
         /// <summary>
@@ -216,7 +240,7 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="filter">Filter with Syslog facility and level</param>
         /// <param name="debug">Debug object</param>
         /// <returns>True if any error appear</returns>
-        private Boolean SendEventByUDP(String message, String eventLogName, EventLogEntry eventLogEntry, Filter filter, ref Debug debug)
+        private Boolean SendEventByUDP(String message, String eventLogName, EventLogEntry eventLogEntry, Filter filter)
         {
             //ASCIIEncoding ascii = new ASCIIEncoding();
             IPAddress[] ServersAddress;
@@ -226,7 +250,7 @@ namespace Centreon_EventLog_2_Syslog
             String body = "<" + pri + ">" + eventLogEntry.MachineName + " " + message;
 
             //string[] strParams = { "<" + ((int)Facility[filter.SyslogFacility] * 8 + (int)Level[filter.SyslogLevel]) + ">", eventLogName + " ", message};
-            
+
             // Convert final message in bytes
             //byte[] rawMsg = Encoding.ASCII.GetBytes(string.Concat(strParams));
             byte[] rawMsg = Encoding.Default.GetBytes(body);
@@ -243,34 +267,164 @@ namespace Centreon_EventLog_2_Syslog
                     UdpClient udp = new UdpClient(ServersAddress.GetValue(i).ToString(), this._ServerPort);
 
                     udp.Send(rawMsg, rawMsg.Length);
-                    debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now);
+                    this._Debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now);
                     udp.Close();
                     udp = null;
-                } 
+                }
             }
             catch (SocketException e)
             {
-                debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
                 return false;
             }
             catch (ArgumentNullException e)
             {
-                debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
                 return false;
             }
             catch (ArgumentOutOfRangeException e)
             {
-                debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
                 return false;
             }
             catch (ObjectDisposedException e)
             {
-                debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
                 return false;
             }
             catch (InvalidOperationException e)
             {
-                debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Send event to syslog server using TCP protocol
+        /// </summary>
+        /// <param name="message">Message to send</param>
+        /// <param name="evebntLogName">EventLog name</param>
+        /// <param name="eventLogEntry">Event to transfert to syslog server</param>
+        /// <param name="filter">Filter with Syslog facility and level</param>
+        /// <param name="debug">Debug object</param>
+        /// <returns>True if any error appear</returns>
+        private Boolean SendEventByTCP(String message, String eventLogName, EventLogEntry eventLogEntry, Filter filter)
+        {
+            IPAddress[] ServersAddress;
+
+            // Create syslog tag and remove syslog message accents
+            Int32 pri = (int)Facility[filter.SyslogFacility.ToLower()] * 8 + (int)Level[filter.SyslogLevel.ToLower()];
+
+            string month = eventLogEntry.TimeWritten.ToString("MMM", DateTimeFormatInfo.InvariantInfo);
+            string day = eventLogEntry.TimeWritten.ToString("dd", DateTimeFormatInfo.InvariantInfo);
+            if (Convert.ToInt32(day) < 10)
+            {
+                day = " " + Convert.ToInt32(day);
+            }
+            string date = month + " " + day + " " + eventLogEntry.TimeWritten.ToString("HH:mm:ss", DateTimeFormatInfo.InvariantInfo);
+
+            String body = "<" + pri + ">" + date + " " + eventLogEntry.MachineName + " " + message + "\n";
+
+            // Convert final message in bytes
+            byte[] rawMsg = Encoding.Default.GetBytes(body);
+
+            try
+            {
+                ServersAddress = Dns.GetHostAddresses(this._ServerAddress);
+
+                //String temp = ServersAddress.GetValue(0).ToString();
+
+                for (int i = 0; i < ServersAddress.Length; i++)
+                {
+                    //Try to send message by TCP
+                    TcpClient tcp;
+                    NetworkStream flux;
+                    try
+                    {
+                        tcp = new TcpClient(ServersAddress.GetValue(i).ToString(), this._ServerPort);
+                        if (tcp.Connected)
+                        {
+                            flux = tcp.GetStream();
+                            if (flux.CanWrite)
+                            {
+                                flux.Write(rawMsg, 0, rawMsg.Length);
+
+                                this._Debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now);
+                                flux.Close();
+                                tcp.Close();
+                                tcp = null;
+                            }
+                            else
+                            {
+                                SetMessageInBuffer(body);
+                            }
+                        }
+                        else
+                        {
+                            SetMessageInBuffer(body);
+                        }
+                    }
+                    catch (SocketException e)
+                    {
+                        //debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
+                        //return false;
+                        SetMessageInBuffer(body);
+                    }
+                    catch (ArgumentNullException e)
+                    {
+                        this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                        return false;
+                    }
+                    catch (ArgumentOutOfRangeException e)
+                    {
+                        this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                        return false;
+                    }
+                    catch (ObjectDisposedException e)
+                    {
+                        this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                        return false;
+                    }
+                    catch (System.IO.IOException e)
+                    {
+                        //debug.Write("Syslog Server", "IOException caught because: " + e.Message, DateTime.Now);
+                        //return false;
+                        SetMessageInBuffer(body);
+                    }
+                    // If it's impossible add message into FIFO stack
+                    // Start process to try to send later messages in FIFO stack
+                    // If FIFO stack is full, write messages into buffer file
+                    // Start process to try to send later messages in buffer file
+                    // If buffer file is full, delete old messages
+
+
+                }
+            }
+            catch (SocketException e)
+            {
+                this._Debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (ArgumentNullException e)
+            {
+                this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (ArgumentOutOfRangeException e)
+            {
+                this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (ObjectDisposedException e)
+            {
+                this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                return false;
+            }
+            catch (InvalidOperationException e)
+            {
+                this._Debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now);
                 return false;
             }
 
@@ -283,12 +437,18 @@ namespace Centreon_EventLog_2_Syslog
         private void SetSyslogLevelAndFacility()
         {
             Level.Add("emergency", 0);
+            Level.Add("emerg", 0);
+            Level.Add("panic", 0);
             Level.Add("alert", 1);
             Level.Add("critical", 2);
+            Level.Add("crit", 2);
             Level.Add("error", 3);
+            Level.Add("err", 3);
             Level.Add("warning", 4);
+            Level.Add("warn", 4);
             Level.Add("notice", 5);
             Level.Add("informational", 6);
+            Level.Add("info", 6);
             Level.Add("debug", 7);
 
             Facility.Add("kern", 0);
@@ -324,7 +484,7 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="eventLogEntry">Event to transfert to syslog server</param>
         /// <param name="debug">Debug object</param>
         /// <returns>String of syslog event to transfert</returns>
-        private String PrepareSyslogEvent(String evebntLogName, EventLogEntry eventLogEntry, ref Debug debug)
+        private String PrepareSyslogEvent(String evebntLogName, EventLogEntry eventLogEntry)
         {
             // Prepare message will sent to syslog server
             String body = eventLogEntry.Source.Replace(" ", "_") + " Type: " + eventLogEntry.EntryType.ToString();
@@ -353,13 +513,100 @@ namespace Centreon_EventLog_2_Syslog
         new public String ToString()
         {
             String temp = "ServerAddress: " + this._ServerAddress + ", Port: " + this._ServerPort + ", Protocol: " + this._Protocol;
-            
+
             if (this._Protocol.CompareTo("tcp") == 0)
             {
-                temp += " , FileBufferMaxSize: " + this._FileBufferMaxSizeInMB + " MB, MemoryBufferMaxSize: " + this._MemoryBufferMaxSize;
+                temp += " MB, MemoryBufferMaxSize: " + this._MemoryBufferMaxSize;
             }
 
             return temp;
         }
+
+        #region TCP communication
+
+        /// <summary>
+        /// Thread to send syslog event to TCP syslog server
+        /// </summary>
+        private void SendThread()
+        {
+            do
+            {
+                // Send the object
+                try
+                {
+                    String message = (String)SendQueue.Peek();
+                    byte[] rawMsg = Encoding.Default.GetBytes(message);
+
+                    IPAddress[] ServersAddress = Dns.GetHostAddresses(this._ServerAddress);
+
+                    //String temp = ServersAddress.GetValue(0).ToString();
+
+                    for (int i = 0; i < ServersAddress.Length; i++)
+                    {
+                        //Try to send message by TCP
+                        TcpClient tcp;
+                        NetworkStream flux;
+
+                        tcp = new TcpClient(ServersAddress.GetValue(i).ToString(), this._ServerPort);
+                        flux = tcp.GetStream();
+                        flux.Write(rawMsg, 0, rawMsg.Length);
+                        flux.Close();
+                        tcp.Close();
+                        tcp = null;
+                        this._Debug.Write("Syslog Server", "Event send to: " + this._ServerAddress + " with message: " + message, DateTime.Now);
+                        SendQueue.Dequeue();
+
+                    }
+                }
+                catch
+                {
+                    this._Debug.Write("Syslog Server", "Erreur dans la queue de tranfere", DateTime.Now);
+                }
+
+                if (SendQueue.Count == 0) Thread.Sleep(100);
+
+            } while (SendQueue.Count != 0);
+
+            sending = false;
+        }
+
+        /// <summary>
+        /// Add syslog event in Queue if can't join TCP syslog server
+        /// </summary>
+        /// <param name="message">syslog event to add in queue</param>
+        private void Send(String message)
+        {
+            this._Debug.Write("Syslog Server", "Add message in queue", DateTime.Now);
+            SendQueue.Enqueue(message);
+
+            // Check to not start a second sending loop
+            if (sending == true) return;
+            sending = true;
+            Sending_thread = new Thread(new ThreadStart(SendThread));
+            Sending_thread.Start();
+        }
+
+        /// <summary>
+        /// Set syslog event into memory buffer to try to sent it later
+        /// </summary>
+        /// <param name="message">syslog event</param>
+        private void SetMessageInBuffer(String message)
+        {
+            if (this.SendQueue == null)
+            {
+                this.SendQueue = new Queue(this._MemoryBufferMaxSize);
+            }
+
+            if (this.SendQueue.Count < this._MemoryBufferMaxSize)
+            {
+                Send(message);
+            }
+            else
+            {
+                this._Debug.Write("Syslog Server", "Memory stack full", DateTime.Now);
+            }
+        }
+
+        #endregion
     }
 }

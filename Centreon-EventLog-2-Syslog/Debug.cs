@@ -73,15 +73,15 @@ namespace Centreon_EventLog_2_Syslog
 
                 this._Path = fileName.Substring(0, fileName.LastIndexOf('\\'));
                 if (System.IO.Directory.Exists(this._Path))
-            	{
+                {
                     this._FileName = fileName;
-            	}
-            	else
-            	{
+                }
+                else
+                {
                     String exepath = Environment.GetCommandLineArgs()[0];
                     this._Path = exepath.Substring(0, exepath.LastIndexOf('\\'));
                     this._FileName = this._Path + "\\" + fileName;
-            	}
+                }
             }
             else
             {
@@ -191,14 +191,6 @@ namespace Centreon_EventLog_2_Syslog
                     }
                 }
             }
-            // Rename debug files
-            // TODO : faire la rotation :D
-
-            // Debug.log.5 => delete
-            // Debug.log.4 => Debug.log.5
-            // Debug.log.3 => Debug.log.4
-            // Debug.log.2 => Debug.log.1
-            // Debug.log => Debug.log.1
 
             for (int i = nbDebufFile; i > 1; i--)
             {

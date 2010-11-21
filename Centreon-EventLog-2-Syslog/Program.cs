@@ -76,7 +76,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Main load XML configuration file
         /// call sub load XML configuration file functions
         /// </summary>
-        private void LoadConfiguration()
+        static void LoadConfiguration()
         {
             ConfigurationFile = "Configuration.xml";
             String exepath = Environment.GetCommandLineArgs()[0];
@@ -169,7 +169,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Load program configuration from specific XML node
         /// </summary>
         /// <param name="node">specific XML including program configuration</param>
-        private void LoadConfigurationProgram(XmlNode node)
+        static void LoadConfigurationProgram(XmlNode node)
         {
             foreach (XmlNode childnode in node.ChildNodes)
             {
@@ -264,7 +264,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Load filters to find in event log
         /// </summary>
         /// <param name="node">specific XML including filter parameters</param>
-        private void LoadFilters(XmlNode node)
+        static void LoadFilters(XmlNode node)
         {
             String patternSyslogLevel = "Emergency|Alert|Critical|Error|Warning|Notice|Informational|Debug";
             Regex rSyslogLevel = new Regex(patternSyslogLevel, RegexOptions.IgnoreCase);
@@ -639,7 +639,7 @@ namespace Centreon_EventLog_2_Syslog
         /// Load Syslog server parameters
         /// </summary>
         /// <param name="node">specific XML including Syslog server parameters</param>
-        private void LoadSyslogConfiguration(XmlNode node)
+        static void LoadSyslogConfiguration(XmlNode node)
         {
             // TODO : Load Syslog server parameters
             foreach (XmlNode childnode in node.ChildNodes)
@@ -647,20 +647,53 @@ namespace Centreon_EventLog_2_Syslog
                 if (childnode.Name.CompareTo("server") == 0)
                 {
                     String address = null;
-                    int port = 0;
                     String protocol = null;
+                    int port = 514;
+                    int memory_buffer = 200;
+
 
                     foreach (XmlNode paramNode in childnode.ChildNodes)
                     {
                         if (paramNode.Name.CompareTo("address") == 0)
                         {
-                            address = paramNode.InnerText;
+                            String validIpAddressRegex = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[0-9]{2,5}$";
+                            String validHostnameRegex = "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9]):[0-9]{2,5}$";
+                            String validIpAddressRegexWithoutPort = "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$";
+                            String validHostnameRegexWithoutPort = "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$";
+
+                            Regex re = new Regex(validIpAddressRegex);
+                            Regex re2 = new Regex(validHostnameRegex);
+                            Regex re3 = new Regex(validIpAddressRegexWithoutPort);
+                            Regex re4 = new Regex(validHostnameRegexWithoutPort);
+
+                            if (re.IsMatch(paramNode.InnerText, 0) || re2.IsMatch(paramNode.InnerText, 0))
+                            {
+                                String[] temp = paramNode.InnerText.ToString().Split(':');
+                                address = temp[0];
+
+                                try
+                                {
+                                    port = Convert.ToInt32(temp[1]);
+                                    deb.Write("Load syslog configuration", "Set port " + port, DateTime.Now);
+                                }
+                                catch (SystemException se)
+                                {
+                                    deb.Write("Load Syslog Server Configuration", "Set port = 514 because: " + se.Message, DateTime.Now);
+                                    port = 514;
+                                }
+                            }
+                            else if (re3.IsMatch(paramNode.InnerText, 0) || re4.IsMatch(paramNode.InnerText, 0))
+                            {
+                                address = paramNode.InnerText;
+                                deb.Write("Load syslog configuration", "Set address " + address, DateTime.Now);
+                            }
                         }
                         else if (paramNode.Name.CompareTo("port") == 0)
                         {
                             try
                             {
                                 port = Convert.ToInt32(paramNode.InnerText);
+                                deb.Write("Load syslog configuration", "Set port " + port, DateTime.Now);
                             }
                             catch (SystemException se)
                             {
@@ -671,12 +704,33 @@ namespace Centreon_EventLog_2_Syslog
                         else if (paramNode.Name.CompareTo("protocole") == 0)
                         {
                             protocol = paramNode.InnerText;
+                            deb.Write("Load syslog configuration", "Set protocole " + protocol, DateTime.Now);
+                        }
+                        else if (paramNode.Name.CompareTo("memory_buffer") == 0)
+                        {
+                            try
+                            {
+                                memory_buffer = Convert.ToInt32(paramNode.InnerText);
+                                deb.Write("Load syslog configuration", "Set memory buffer " + memory_buffer, DateTime.Now);
+                            }
+                            catch (SystemException se)
+                            {
+                                deb.Write("Load Syslog Server Configuration", "Set memory_buffer = 200 because: " + se.Message, DateTime.Now);
+                                memory_buffer = 200;
+                            }
                         }
                     }
 
                     try
                     {
-                        syslogServer = new SyslogServer(address, protocol, port);
+                        if (syslogServer == null)
+                        {
+                            syslogServer = new SyslogServer(address, protocol, port, memory_buffer, ref deb);
+                        }
+                        else
+                        {
+                            syslogServer.SetSyslogServer(address, port);
+                        }
                     }
                     catch (Exception e)
                     {

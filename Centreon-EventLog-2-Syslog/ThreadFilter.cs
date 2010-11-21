@@ -109,7 +109,7 @@ namespace Centreon_EventLog_2_Syslog
                 int NbLogEntries = eventLogEntryCollection.Count;
 
                 this._Debug.Write("Thread " + _LogName, "Start events control from: " + _LogName, DateTime.Now);
-                
+
                 for (int i = NbLogEntries - 1; i > 0; i--)
                 {
                     eventLogEntry = eventLogEntryCollection[i];
@@ -157,7 +157,7 @@ namespace Centreon_EventLog_2_Syslog
                         {
                             try
                             {
-                                this._SyslogServer.SendEvent(this._LogName, eventLogEntry, iFilter, ref this._Debug);
+                                this._SyslogServer.SendEvent(this._LogName, eventLogEntry, iFilter);
                             }
                             catch (Exception e)
                             {
@@ -313,7 +313,7 @@ namespace Centreon_EventLog_2_Syslog
                     return true;
                 }
             }
-            
+
             return false;
         }
     }
