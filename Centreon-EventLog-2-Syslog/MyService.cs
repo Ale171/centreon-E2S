@@ -115,7 +115,7 @@ namespace Centreon_EventLog_2_Syslog
             }
             catch (Exception ex)
             {
-                EventLog.WriteEntry("Mon premier ServiceWindows", ex.Message, EventLogEntryType.Error, 15);
+                EventLog.WriteEntry("EventToSyslog problem", ex.Message, EventLogEntryType.Error, 15);
             }
         }
 

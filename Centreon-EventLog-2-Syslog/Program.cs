@@ -88,7 +88,7 @@ namespace Centreon_EventLog_2_Syslog
             debInf.Level = 1;
             debInf.Versobe = 1;
             deb = new Debug("Debug.log", ref debInf);
-            deb.Write("Main Program", "Load configuration", DateTime.Now);
+            deb.Write("Main Program", "Load configuration", DateTime.Now, 2);
 
             try
             {
@@ -108,7 +108,7 @@ namespace Centreon_EventLog_2_Syslog
 
                         if (debInf.Versobe == 2)
                         {
-                            deb.Write("Load Syslog Server Configuration", "Syslog server configuration: " + syslogServer.ToString(), DateTime.Now);
+                            deb.Write("Load Syslog Server Configuration", "Syslog server configuration: " + syslogServer.ToString(), DateTime.Now, 2);
                         }
                     }
                     else if (node.Name.CompareTo("filters") == 0)
@@ -137,30 +137,31 @@ namespace Centreon_EventLog_2_Syslog
                                     eItems = etemp.Count;
                                 }
 
-                                deb.Write("Load configuration", iItems + " include filter(s) and " + eItems + " exclude filter(s) loaded for eventLog : " + eventLogName, DateTime.Now);
+                                deb.Write("Load configuration", iItems + " include filter(s) and " + eItems + " exclude filter(s) loaded for eventLog : " + eventLogName, DateTime.Now, 2);
                                 itemp = null;
                                 etemp = null;
                             }
                         }
                     }
                 }
+                xDoc = null;
             }
             catch (XmlException xe)
             {
-                deb.Write("Load configuration", "101 - Load XML configuration - " + xe.Message, DateTime.Now);
-                deb.Write("Load configuration", "Program stop", DateTime.Now);
+                deb.Write("Load configuration", "101 - Load XML configuration - " + xe.Message, DateTime.Now, 1);
+                deb.Write("Load configuration", "Program stop", DateTime.Now, 1);
                 System.Environment.Exit(-1);
             }
             catch (NotSupportedException nse)
             {
-                deb.Write("Load configuration", "102 - Load XML configuration - " + nse.Message, DateTime.Now);
-                deb.Write("Load configuration", "Program stop", DateTime.Now);
+                deb.Write("Load configuration", "102 - Load XML configuration - " + nse.Message, DateTime.Now, 1);
+                deb.Write("Load configuration", "Program stop", DateTime.Now, 1);
                 System.Environment.Exit(-1);
             }
             catch (Exception e)
             {
-                deb.Write("Load configuration", "103 - Load XML configuration - " + e.Message, DateTime.Now);
-                deb.Write("Load configuration", "Program stop", DateTime.Now);
+                deb.Write("Load configuration", "103 - Load XML configuration - " + e.Message, DateTime.Now, 1);
+                deb.Write("Load configuration", "Program stop", DateTime.Now, 1);
                 System.Environment.Exit(-1);
             }
         }
@@ -182,17 +183,13 @@ namespace Centreon_EventLog_2_Syslog
                             try
                             {
                                 debInf.Level = Convert.ToInt32(paramNode.InnerText);
-                                if (debInf.Versobe == 2)
-                                {
-                                    deb.Write("Load program configuration", "Set level " + debInf.Level, DateTime.Now);
-                                }
+                                deb.Write("Load program configuration", "Set level " + debInf.Level, DateTime.Now, 2);
                             }
                             catch (FormatException fe)
                             {
                                 debInf.Level = 1;
-                                DateTime temp = DateTime.Now;
-                                deb.Write("Load program configuration", "201 - Get level value - " + fe.Message, temp);
-                                deb.Write("Load program configuration", "201 - Debug level value is set to \"1\"", temp);
+                                deb.Write("Load program configuration", "201 - Get level value - " + fe.Message, DateTime.Now, 1);
+                                deb.Write("Load program configuration", "201 - Debug level value is set to \"1\"", DateTime.Now, 1);
                             }
                         }
                         else if (paramNode.Name.CompareTo("verbose") == 0)
@@ -200,14 +197,12 @@ namespace Centreon_EventLog_2_Syslog
                             try
                             {
                                 debInf.Versobe = Convert.ToInt32(paramNode.InnerText);
-                                if (debInf.Versobe == 2)
-                                {
-                                    deb.Write("Load program configuration", "Set Verbose " + debInf.Level, DateTime.Now);
-                                }
+                                deb.Write("Load program configuration", "Set Verbose " + debInf.Level, DateTime.Now, 2);
+
                             }
                             catch (FormatException fe)
                             {
-                                deb.Write("Load program configuration", "202 - Get verbose value - " + fe.Message, DateTime.Now);
+                                deb.Write("Load program configuration", "202 - Get verbose value - " + fe.Message, DateTime.Now, 1);
                             }
                         }
                         else if (paramNode.Name.CompareTo("max_size") == 0)
@@ -215,14 +210,11 @@ namespace Centreon_EventLog_2_Syslog
                             try
                             {
                                 debInf.MaxSize = Convert.ToInt32(paramNode.InnerText);
-                                if (debInf.Versobe == 2)
-                                {
-                                    deb.Write("Load program configuration", "Set Debug file max size " + debInf.MaxSize + " MB", DateTime.Now);
-                                }
+                                deb.Write("Load program configuration", "Set Debug file max size " + debInf.MaxSize + " MB", DateTime.Now, 2);
                             }
                             catch (FormatException fe)
                             {
-                                deb.Write("Load program configuration", "203 - Get max size value - " + fe.Message, DateTime.Now);
+                                deb.Write("Load program configuration", "203 - Get max size value - " + fe.Message, DateTime.Now, 1);
                             }
                         }
                         else if (paramNode.Name.CompareTo("file_number") == 0)
@@ -232,12 +224,12 @@ namespace Centreon_EventLog_2_Syslog
                                 debInf.FileNumber = Convert.ToInt32(paramNode.InnerText);
                                 if (debInf.Versobe == 2)
                                 {
-                                    deb.Write("Load program configuration", "Set Debug max number files " + debInf.FileNumber, DateTime.Now);
+                                    deb.Write("Load program configuration", "Set Debug max number files " + debInf.FileNumber, DateTime.Now, 2);
                                 }
                             }
                             catch (FormatException fe)
                             {
-                                deb.Write("Load program configuration", "204 - Get file number value - " + fe.Message, DateTime.Now);
+                                deb.Write("Load program configuration", "204 - Get file number value - " + fe.Message, DateTime.Now, 1);
                             }
                         }
                     }
@@ -249,12 +241,12 @@ namespace Centreon_EventLog_2_Syslog
                         refreshIntervalle = Convert.ToInt32(childnode.InnerText);
                         if (debInf.Versobe == 2)
                         {
-                            deb.Write("Load program configuration", "Set Refresh intervalle " + refreshIntervalle + " minutes", DateTime.Now);
+                            deb.Write("Load program configuration", "Set Refresh intervalle " + refreshIntervalle + " minutes", DateTime.Now, 2);
                         }
                     }
                     catch (FormatException fe)
                     {
-                        deb.Write("Load program configuration", "205 - Getrefresh intervalle value - " + fe.Message, DateTime.Now);
+                        deb.Write("Load program configuration", "205 - Getrefresh intervalle value - " + fe.Message, DateTime.Now, 1);
                     }
                 }
             }
@@ -563,7 +555,7 @@ namespace Centreon_EventLog_2_Syslog
                                 }
                                 else
                                 {
-                                    deb.Write("Load filters configuration", "301 - Uncorrect syslog level : \"" + paramNode.InnerText + "\"", DateTime.Now);
+                                    deb.Write("Load filters configuration", "301 - Uncorrect syslog level : \"" + paramNode.InnerText + "\"", DateTime.Now, 1);
                                 }
                             }
                             else if (paramNode.Name.ToLower().CompareTo("facility") == 0)
@@ -575,7 +567,7 @@ namespace Centreon_EventLog_2_Syslog
                                 }
                                 else
                                 {
-                                    deb.Write("Load filters configuration", "301 - Uncorrect syslog facility : \"" + paramNode.InnerText + "\"", DateTime.Now);
+                                    deb.Write("Load filters configuration", "301 - Uncorrect syslog facility : \"" + paramNode.InnerText + "\"", DateTime.Now, 1);
                                 }
                             }
                         }
@@ -594,40 +586,28 @@ namespace Centreon_EventLog_2_Syslog
                         if ((itemp != null) && !iFilter.IsEmpty())
                         {
                             itemp.Add(iFilter);
-                            if (debInf.Versobe == 2)
-                            {
-                                deb.Write("Load filters configuration", "Add to filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
-                            }
+                            deb.Write("Load filters configuration", "Add to filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now, 2);
                             iFilters[element] = itemp;
                         }
                         else if ((itemp == null) && !iFilter.IsEmpty())
                         {
                             itemp = new ArrayList();
                             itemp.Add(iFilter);
-                            if (debInf.Versobe == 2)
-                            {
-                                deb.Write("Load filters configuration", "Add to filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
-                            }
+                            deb.Write("Load filters configuration", "Add to filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now, 2);
                             iFilters[element] = itemp;
                         }
 
                         if ((etemp != null) && !eFilter.IsEmpty())
                         {
                             etemp.Add(eFilter);
-                            if (debInf.Versobe == 2)
-                            {
-                                deb.Write("Load filters configuration", "Add to exclude filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
-                            }
+                            deb.Write("Load filters configuration", "Add to exclude filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now, 2);
                             eFilters[element] = etemp;
                         }
                         else if ((etemp == null) && !eFilter.IsEmpty())
                         {
                             etemp = new ArrayList();
                             etemp.Add(eFilter);
-                            if (debInf.Versobe == 2)
-                            {
-                                deb.Write("Load filters configuration", "Add to exclude filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now);
-                            }
+                            deb.Write("Load filters configuration", "Add to exclude filter list for event log " + element + " evement " + iFilter.ToString(), DateTime.Now, 2);
                             eFilters[element] = etemp;
                         }
                     }
@@ -674,18 +654,18 @@ namespace Centreon_EventLog_2_Syslog
                                 try
                                 {
                                     port = Convert.ToInt32(temp[1]);
-                                    deb.Write("Load syslog configuration", "Set port " + port, DateTime.Now);
+                                    deb.Write("Load syslog configuration", "Set port " + port, DateTime.Now, 2);
                                 }
                                 catch (SystemException se)
                                 {
-                                    deb.Write("Load Syslog Server Configuration", "Set port = 514 because: " + se.Message, DateTime.Now);
+                                    deb.Write("Load Syslog Server Configuration", "Set port = 514 because: " + se.Message, DateTime.Now, 1);
                                     port = 514;
                                 }
                             }
                             else if (re3.IsMatch(paramNode.InnerText, 0) || re4.IsMatch(paramNode.InnerText, 0))
                             {
                                 address = paramNode.InnerText;
-                                deb.Write("Load syslog configuration", "Set address " + address, DateTime.Now);
+                                deb.Write("Load syslog configuration", "Set address " + address, DateTime.Now, 2);
                             }
                         }
                         else if (paramNode.Name.CompareTo("port") == 0)
@@ -693,29 +673,29 @@ namespace Centreon_EventLog_2_Syslog
                             try
                             {
                                 port = Convert.ToInt32(paramNode.InnerText);
-                                deb.Write("Load syslog configuration", "Set port " + port, DateTime.Now);
+                                deb.Write("Load syslog configuration", "Set port " + port, DateTime.Now, 2);
                             }
                             catch (SystemException se)
                             {
-                                deb.Write("Load Syslog Server Configuration", "Set port = 514 because: " + se.Message, DateTime.Now);
+                                deb.Write("Load Syslog Server Configuration", "Set port = 514 because: " + se.Message, DateTime.Now, 2);
                                 port = 514;
                             }
                         }
                         else if (paramNode.Name.CompareTo("protocole") == 0)
                         {
                             protocol = paramNode.InnerText;
-                            deb.Write("Load syslog configuration", "Set protocole " + protocol, DateTime.Now);
+                            deb.Write("Load syslog configuration", "Set protocole " + protocol, DateTime.Now, 2);
                         }
                         else if (paramNode.Name.CompareTo("memory_buffer") == 0)
                         {
                             try
                             {
                                 memory_buffer = Convert.ToInt32(paramNode.InnerText);
-                                deb.Write("Load syslog configuration", "Set memory buffer " + memory_buffer, DateTime.Now);
+                                deb.Write("Load syslog configuration", "Set memory buffer " + memory_buffer, DateTime.Now, 2);
                             }
                             catch (SystemException se)
                             {
-                                deb.Write("Load Syslog Server Configuration", "Set memory_buffer = 200 because: " + se.Message, DateTime.Now);
+                                deb.Write("Load Syslog Server Configuration", "Set memory_buffer = 200 because: " + se.Message, DateTime.Now, 1);
                                 memory_buffer = 200;
                             }
                         }
@@ -734,8 +714,8 @@ namespace Centreon_EventLog_2_Syslog
                     }
                     catch (Exception e)
                     {
-                        deb.Write("Load Syslog Server Configuration", "Configuration of syslog server is not correct: " + e.Message, DateTime.Now);
-                        deb.Write("Load Syslog Server Configuration", "Program abort", DateTime.Now);
+                        deb.Write("Load Syslog Server Configuration", "Configuration of syslog server is not correct: " + e.Message, DateTime.Now, 1);
+                        deb.Write("Load Syslog Server Configuration", "Program abort", DateTime.Now, 1);
                         System.Environment.Exit(-1);
                     }
                 }
@@ -778,10 +758,7 @@ namespace Centreon_EventLog_2_Syslog
                 int now = dtNow.Hour * 3600 + dtNow.Minute * 60 + dtNow.Second;
                 int sleep = ((nextCheck.Hour * 3600 + nextCheck.Minute * 60 + nextCheck.Second) - now);
 
-                if (debInf.Versobe == 2)
-                {
-                    deb.Write("Main program", "Sleep for " + sleep + " seconds", DateTime.Now);
-                }
+                deb.Write("Main program", "Sleep for " + sleep + " seconds\n\n", DateTime.Now, 2);
 
                 do
                 {
@@ -798,7 +775,7 @@ namespace Centreon_EventLog_2_Syslog
             }
             while (isActive);
 
-            deb.Write("Main program", "Program stop", DateTime.Now);
+            deb.Write("Main program", "Program stop", DateTime.Now, 2);
             System.Environment.Exit(0);
         }
 
@@ -807,7 +784,7 @@ namespace Centreon_EventLog_2_Syslog
         /// </summary>
         private void StartThread()
         {
-            deb.Write("Preparation of Threads", "Start threads", DateTime.Now);
+            deb.Write("Preparation of Threads", "Start threads", DateTime.Now, 2);
 
             ArrayList list = new ArrayList(iFilters.Keys);
             String[] eventLogNames = (String[])list.ToArray(typeof(string));
@@ -831,18 +808,18 @@ namespace Centreon_EventLog_2_Syslog
                     }
                     catch (System.NullReferenceException e)
                     {
-                        deb.Write("Preparation of Threads", "401 - Problem starting thread for " + eventLog + "package rules due to: " + e.Message, DateTime.Now);
+                        deb.Write("Preparation of Threads", "401 - Problem starting thread for " + eventLog + "package rules due to: " + e.Message, DateTime.Now, 1);
                     }
                     i++;
                 }
             }
             catch (System.NullReferenceException e)
             {
-                deb.Write("Preparation of Threads", "402 - Problem starting threads due to: " + e.Message, DateTime.Now);
+                deb.Write("Preparation of Threads", "402 - Problem starting threads due to: " + e.Message, DateTime.Now, 1);
                 System.Environment.Exit(-1);
             }
 
-            deb.Write("Preparation of Threads", "End of starting threads", DateTime.Now);
+            deb.Write("Preparation of Threads", "End of starting threads", DateTime.Now, 2);
         }
 
         /// <summary>

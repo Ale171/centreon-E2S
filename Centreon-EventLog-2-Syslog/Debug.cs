@@ -101,9 +101,10 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="line">Error to write</param>
         /// <param name="dtError">DateTime when of error</param>
         /// <returns></returns>
-        public Boolean Write(String processName, String line, DateTime dtError)
+        public Boolean Write(String processName, String line, DateTime dtError, int errorLevel)
         {
-            if (this._DebugInfo.Level != 0)
+            // Write debug if debug is active and level is correct
+            if ((this._DebugInfo.Level != 0) && (errorLevel <= this._DebugInfo.Versobe))
             {
                 StreamWriter stw;
 
@@ -160,8 +161,7 @@ namespace Centreon_EventLog_2_Syslog
             int nbDebufFile = 0;
             foreach (String file in files)
             {
-                //Regex re = new Regex(@"\w+:\\\w+\\Debug.log.\d", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
-                Regex re = new Regex(@"Debug.log.\d$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
+                Regex re = new Regex(@"Debug.log", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.IgnorePatternWhitespace | RegexOptions.Compiled);
 
                 if (re.IsMatch(file))
                 {

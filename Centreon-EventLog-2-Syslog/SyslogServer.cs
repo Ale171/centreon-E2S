@@ -242,24 +242,19 @@ namespace Centreon_EventLog_2_Syslog
         /// <returns>True if any error appear</returns>
         private Boolean SendEventByUDP(String message, String eventLogName, EventLogEntry eventLogEntry, Filter filter)
         {
-            //ASCIIEncoding ascii = new ASCIIEncoding();
             IPAddress[] ServersAddress;
 
             // Create syslog tag and remove syslog message accents
             Int32 pri = (int)Facility[filter.SyslogFacility.ToLower()] * 8 + (int)Level[filter.SyslogLevel.ToLower()];
             String body = "<" + pri + ">" + eventLogEntry.MachineName + " " + message;
 
-            //string[] strParams = { "<" + ((int)Facility[filter.SyslogFacility] * 8 + (int)Level[filter.SyslogLevel]) + ">", eventLogName + " ", message};
-
             // Convert final message in bytes
-            //byte[] rawMsg = Encoding.ASCII.GetBytes(string.Concat(strParams));
             byte[] rawMsg = Encoding.Default.GetBytes(body);
 
             try
             {
                 ServersAddress = Dns.GetHostAddresses(this._ServerAddress);
 
-                //UdpClient udp = new UdpClient(this._ServerAddress, this._ServerPort);
                 String temp = ServersAddress.GetValue(0).ToString();
 
                 for (int i = 0; i < ServersAddress.Length; i++)
@@ -267,34 +262,34 @@ namespace Centreon_EventLog_2_Syslog
                     UdpClient udp = new UdpClient(ServersAddress.GetValue(i).ToString(), this._ServerPort);
 
                     udp.Send(rawMsg, rawMsg.Length);
-                    this._Debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now);
+                    this._Debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now, 2);
                     udp.Close();
                     udp = null;
                 }
             }
             catch (SocketException e)
             {
-                this._Debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (ArgumentNullException e)
             {
-                this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (ArgumentOutOfRangeException e)
             {
-                this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (ObjectDisposedException e)
             {
-                this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (InvalidOperationException e)
             {
-                this._Debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
 
@@ -351,7 +346,7 @@ namespace Centreon_EventLog_2_Syslog
                             {
                                 flux.Write(rawMsg, 0, rawMsg.Length);
 
-                                this._Debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now);
+                                this._Debug.Write("Syslog Server", "Event send to: " + ServersAddress.GetValue(i).ToString() + " with message: " + message, DateTime.Now, 2);
                                 flux.Close();
                                 tcp.Close();
                                 tcp = null;
@@ -368,63 +363,52 @@ namespace Centreon_EventLog_2_Syslog
                     }
                     catch (SocketException e)
                     {
-                        //debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
-                        //return false;
                         SetMessageInBuffer(body);
                     }
                     catch (ArgumentNullException e)
                     {
-                        this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                        this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now, 1);
                         return false;
                     }
                     catch (ArgumentOutOfRangeException e)
                     {
-                        this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                        this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now, 1);
                         return false;
                     }
                     catch (ObjectDisposedException e)
                     {
-                        this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                        this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now, 1);
                         return false;
                     }
                     catch (System.IO.IOException e)
                     {
-                        //debug.Write("Syslog Server", "IOException caught because: " + e.Message, DateTime.Now);
-                        //return false;
                         SetMessageInBuffer(body);
                     }
-                    // If it's impossible add message into FIFO stack
-                    // Start process to try to send later messages in FIFO stack
-                    // If FIFO stack is full, write messages into buffer file
-                    // Start process to try to send later messages in buffer file
-                    // If buffer file is full, delete old messages
-
-
                 }
             }
             catch (SocketException e)
             {
-                this._Debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "SocketException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (ArgumentNullException e)
             {
-                this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ArgumentNullException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (ArgumentOutOfRangeException e)
             {
-                this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ArgumentOutOfRangeException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (ObjectDisposedException e)
             {
-                this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "ObjectDisposedException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
             catch (InvalidOperationException e)
             {
-                this._Debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now);
+                this._Debug.Write("Syslog Server", "InvalidOperationException caught because: " + e.Message, DateTime.Now, 1);
                 return false;
             }
 
@@ -516,7 +500,7 @@ namespace Centreon_EventLog_2_Syslog
 
             if (this._Protocol.CompareTo("tcp") == 0)
             {
-                temp += " MB, MemoryBufferMaxSize: " + this._MemoryBufferMaxSize;
+                temp += " , MemoryBufferMaxSize: " + this._MemoryBufferMaxSize;
             }
 
             return temp;
@@ -553,14 +537,13 @@ namespace Centreon_EventLog_2_Syslog
                         flux.Close();
                         tcp.Close();
                         tcp = null;
-                        this._Debug.Write("Syslog Server", "Event send to: " + this._ServerAddress + " with message: " + message, DateTime.Now);
+                        this._Debug.Write("Syslog Server", "Event send to: " + this._ServerAddress + " with message: " + message, DateTime.Now, 2);
                         SendQueue.Dequeue();
 
                     }
                 }
-                catch
+                catch (Exception e)
                 {
-                    this._Debug.Write("Syslog Server", "Erreur dans la queue de tranfere", DateTime.Now);
                 }
 
                 if (SendQueue.Count == 0) Thread.Sleep(100);
@@ -576,7 +559,7 @@ namespace Centreon_EventLog_2_Syslog
         /// <param name="message">syslog event to add in queue</param>
         private void Send(String message)
         {
-            this._Debug.Write("Syslog Server", "Add message in queue", DateTime.Now);
+            this._Debug.Write("Syslog Server", "Add message in queue", DateTime.Now, 2);
             SendQueue.Enqueue(message);
 
             // Check to not start a second sending loop
@@ -603,7 +586,7 @@ namespace Centreon_EventLog_2_Syslog
             }
             else
             {
-                this._Debug.Write("Syslog Server", "Memory stack full", DateTime.Now);
+                this._Debug.Write("Syslog Server", "Memory stack full", DateTime.Now, 1);
             }
         }
 

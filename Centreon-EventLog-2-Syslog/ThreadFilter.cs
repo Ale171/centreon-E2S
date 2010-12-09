@@ -101,14 +101,14 @@ namespace Centreon_EventLog_2_Syslog
             }
             catch (System.Exception e)
             {
-                this._Debug.Write("Thread " + _LogName, "Unable to load eventLog: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now);
+                this._Debug.Write("Thread " + _LogName, "Unable to load eventLog: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now, 1);
             }
 
             try
             {
                 int NbLogEntries = eventLogEntryCollection.Count;
 
-                this._Debug.Write("Thread " + _LogName, "Start events control from: " + _LogName, DateTime.Now);
+                this._Debug.Write("Thread " + _LogName, "Start events control from: " + _LogName, DateTime.Now, 2);
 
                 for (int i = NbLogEntries - 1; i > 0; i--)
                 {
@@ -135,7 +135,7 @@ namespace Centreon_EventLog_2_Syslog
                         }
                         catch (Exception e)
                         {
-                            this._Debug.Write("Thread " + _LogName, "Problem during check if event is exclude: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now);
+                            this._Debug.Write("Thread " + _LogName, "Problem during check if event is exclude: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now, 1);
                         }
 
                         if (!isExclude)
@@ -149,7 +149,7 @@ namespace Centreon_EventLog_2_Syslog
                             }
                             catch (Exception e)
                             {
-                                this._Debug.Write("Thread " + _LogName, "Problem during check if event is include: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now);
+                                this._Debug.Write("Thread " + _LogName, "Problem during check if event is include: \"" + _LogName + "\" entries because : " + e.Message, DateTime.Now, 1);
                             }
                         }
 
@@ -161,7 +161,7 @@ namespace Centreon_EventLog_2_Syslog
                             }
                             catch (Exception e)
                             {
-                                this._Debug.Write("Thread " + _LogName, "Unable to send eventLogEntry to syslogServer process because : " + e.Message, DateTime.Now);
+                                this._Debug.Write("Thread " + _LogName, "Unable to send eventLogEntry to syslogServer process because : " + e.Message, DateTime.Now, 1);
                             }
                         }
                     }
@@ -176,12 +176,12 @@ namespace Centreon_EventLog_2_Syslog
                 eventLogEntry = null;
                 eventLogEntryCollection = null;
 
-                this._Debug.Write("Thread " + _LogName, "Finish events control", DateTime.Now);
+                this._Debug.Write("Thread " + _LogName, "Finish events control", DateTime.Now, 2);
                 _DoneEvent.Set();
             }
             catch (System.Exception e)
             {
-                this._Debug.Write("Thread " + _LogName, "Problem during research due to: " + e.Message, DateTime.Now);
+                this._Debug.Write("Thread " + _LogName, "Problem during research due to: " + e.Message, DateTime.Now, 1);
                 _DoneEvent.Set();
             }
         }
